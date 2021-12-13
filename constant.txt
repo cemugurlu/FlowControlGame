@@ -1,0 +1,10 @@
+Client: Sends a message with packet length and sequence number
+- PKL=2048 SEQ=0
+
+- seq random or predefined 32 packet....?
+- txt.....
+
+
+
+Client stops sending message when server sends win = 0
+and starts again when the server sends another ACK
