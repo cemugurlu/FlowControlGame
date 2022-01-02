@@ -130,7 +130,12 @@ class Server:
 
             #ACK MESSAGE
             acknowledged_message = f'{buffer} {length} {ack_message}'
-
+            print(f"\t\tSERVER MESSAGE: {acknowledged_message}")
+            print(f"SCORE ->\tTotal:{self.server_plus_points - self.server_minus_points}\t"
+                  f"Plus:{self.server_plus_points}\tMinus:{self.server_minus_points}")
+            print("-" * 36)
+            print("")
+            
         # auto mode
         elif self.mode_select == '2':
             # Check if its okay to receive
