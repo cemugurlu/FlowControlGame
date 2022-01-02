@@ -97,7 +97,7 @@ class Client:
             else:
                 time.sleep(4)
 
-            print(f"\tCLIENT MESSAGE: {message}")
+            print(f"\t\tCLIENT MESSAGE: {message}")
 
         # SEND TO THE SERVER
         self.clientSocket.sendto(message.encode('UTF-8'),
@@ -128,7 +128,6 @@ class Client:
         print(f"Response from server: RNWD:{server_rwnd} PCK_LEN:{server_pck_len} ACK:{server_ack}")
 
         # SCORE MECHANISM
-        print("-" * 36)
         if server_ack == "ACK" and not self.losing_point:
             self.client_plus_points = self.client_plus_points + 1
             print("\t\t** C O R R E C T **")
@@ -141,6 +140,7 @@ class Client:
             f"SCORE ->\tTotal:{self.client_plus_points - self.client_minus_points}\t"
             f"Plus:{self.client_plus_points}\tMinus:{self.client_minus_points}")
         print("-" * 36)
+        print("")
 
     def update_buffer(self,server_buffer):
         self.buffer_size = int(server_buffer)
