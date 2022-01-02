@@ -42,19 +42,23 @@ class Server:
                 pass
 
     def data_receiver(self):
-         while True:
-             message, self.clientAddress = self.serverSocket.recvfrom(2048)
-             updated_message = (message.decode("utf-8"))
-             self.data_queue.put(updated_message)
+        while True:
+            try:
+                message, self.clientAddress = self.serverSocket.recvfrom(2048)
+                updated_message = (message.decode("utf-8"))
+                self.data_queue.put(updated_message)
+            except OSError:
+                pass
 
     def server_iteration(self, data):
-        #if data is "WON"
+        # if data is "WON"
         if data == "WON":
-            print("* "*13)
-            print("*\t\tSERVER WON\t\t*")
+            print("* " * 13)
+            print("*\t\tCLIENT WON\t\t*")
             print("* " * 13)
             self.serverSocket.close()
-            quit()
+            self.data_receiver.join()
+            exit()
 
         #check point is 10
         if(self.server_plus_points-self.server_minus_points) == 10:
@@ -150,14 +154,24 @@ class Server:
                 self.server_plus_points += 1
 
 
-
             acknowledged_message = f'{self.server_buffer} {message_length} {ack_message}'
             print(f"\t\tSERVER MESSAGE: {acknowledged_message}")
             print(f"SCORE ->\tTotal:{self.server_plus_points - self.server_minus_points}\t"
                   f"Plus:{self.server_plus_points}\tMinus:{self.server_minus_points}")
             print("-" * 36)
             print("")
-
+        
+        # check point is 10
+        if (self.server_plus_points - self.server_minus_points) == 10:
+            message = "WON"
+            self.serverSocket.sendto(message.encode('UTF-8'), self.clientAddress)
+            print("* " * 13)
+            print("*\t\tSERVER WON\t\t*")
+            print("* " * 13)
+            self.serverSocket.close()
+            self.data_receiver.join()
+            exit()
+            
         self.serverSocket.sendto(acknowledged_message.encode('UTF-8'), self.clientAddress)
         print("Waiting for the message from client...")
 

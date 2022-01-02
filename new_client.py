@@ -13,6 +13,7 @@ class Client:
         self.serverName = gethostname()
         self.serverAddress = None
         self.clientSocket = socket(AF_INET, SOCK_DGRAM)
+        self.clientSocket.connect((self.serverName, self.serverPort))
 
         # POINT SYSTEM
         self.client_minus_points = 0
@@ -49,10 +50,13 @@ class Client:
 
     def data_receiver(self):
         while True:
-            message, self.serverAddress = self.clientSocket.recvfrom(2048)
-            updated_message = (message.decode("utf-8"))
-            self.data_queue.put(updated_message)
-            self.next_turn = True
+            try:
+                message, self.serverAddress = self.clientSocket.recvfrom(2048)
+                updated_message = (message.decode("utf-8"))
+                self.data_queue.put(updated_message)
+                self.next_turn = True
+            except OSError:
+                pass
 
     def client_send_iteration(self):
         #check point is 10
@@ -88,6 +92,7 @@ class Client:
                     f"SCORE ->\tTotal:{self.client_plus_points - self.client_minus_points}\t"
                     f"Plus:{self.client_plus_points}\tMinus:{self.client_minus_points}")
                 print("-" * 36)
+                
                 return
 
             # GOLD DATA CALCULATION
@@ -105,13 +110,14 @@ class Client:
             # randomizes the waiting time of the client
             random_number = random.randint(0, 100)
             if 0 < random_number < 33:
-                time.sleep(1)
+                time.sleep(6)
             elif 33 < random_number < 66:
-                time.sleep(1)
+                time.sleep(7)
             else:
-                time.sleep(1)
+                time.sleep(8)
 
             print(f"\t\tCLIENT MESSAGE: {message}")
+        
 
         # SEND TO THE SERVER
         self.clientSocket.sendto(message.encode('UTF-8'),
@@ -121,11 +127,12 @@ class Client:
 
     def client_receive_iteration(self,data):
         if data == "WON":
-            print("* "*13)
+            print("* " * 13)
             print("*\t\tSERVER WON\t\t*")
             print("* " * 13)
             self.clientSocket.close()
-            quit()
+            self.data_receiver.join()
+            exit()
 
         modifiedMessage_array = data.split(' ')
         server_rwnd = modifiedMessage_array[0]
@@ -161,6 +168,15 @@ class Client:
             f"Plus:{self.client_plus_points}\tMinus:{self.client_minus_points}")
         print("-" * 36)
         print("")
+        if (self.client_plus_points - self.client_minus_points) == 10:
+            message = "WON"
+            print("* " * 13)
+            print("*\t\tCLIENT WON\t\t*")
+            print("* " * 13)
+            self.clientSocket.sendto(message.encode('UTF-8'), self.serverAddress)
+            self.clientSocket.close()
+            self.data_receiver.join()
+            exit()
 
     def update_buffer(self,server_buffer):
         self.buffer_size = int(server_buffer)
