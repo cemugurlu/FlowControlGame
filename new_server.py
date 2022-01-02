@@ -9,7 +9,7 @@ mode_select = '2'
 
 # BUFFER
 server_buffer = 8  # KB
-buffer_time_limit = 10
+buffer_time_limit = 30
 local_store = []
 
 # POINT SYSTEM
@@ -57,7 +57,14 @@ class Server:
         # manual mode
         if mode_select == '1':
             losing_point = False
-            message = input("Enter receive window number, packet length and ack status as \"{RWND} {PCK_LEN} {ACK or NAK}\": ")
+            while True:
+                message = input("Enter receive window number, packet length and ack status as \"{RWND} {PCK_LEN} {ACK or NAK}\": ")
+                if message == "":
+                    print("invalid input try again")
+                else:
+                    break
+
+
             message_array = message.split(' ')
 
             if(len(message_array) != 3):
@@ -68,9 +75,9 @@ class Server:
             ack_message = message_array[2]
 
             #GOLD DATA CALCULATION
-
             if int(message_length) <= server_buffer: #possible to send?
                 remaining_buffer = server_buffer - int(message_length)
+                gold_length = message_length
                 gold_ack_message = "ACK"
             else:
                 remaining_buffer = server_buffer
@@ -95,7 +102,7 @@ class Server:
                 ack_message = gold_ack_message
 
                 print("\t\t** W R O N G :( **")
-                print(f"Correct answer was: \"{server_buffer} {length} {ack_message}\"")
+                print(f"Correct answer was: \"{buffer} {length} {ack_message}\"")
             else: #USER CORRECT
                 global server_plus_points
                 server_plus_points += 1
@@ -141,10 +148,13 @@ class Server:
 
     def update_available_buffer(self,size):
         global server_buffer, clientAddress
-        print("BUFFER UPDATED")
         server_buffer += size
-
-        print(f"kalan buffer {server_buffer}")
+        print("")
+        print("*" * 40)
+        print("\t\tServer Buffer is Updated")
+        print(f"\t\tRemaining Buffer: {server_buffer}")
+        print("*" * 40)
+        print("")
         acknowledgedMessageOne = f'{server_buffer} 0 ACK'
         serverSocket.sendto(acknowledgedMessageOne.encode('UTF-8'), clientAddress)
 
