@@ -20,8 +20,8 @@ class Client:
         self.losing_point = False
 
         # BUFFER
-        self.init_buffer_size = 8  # KB
-        self.buffer_size = 8
+        self.init_buffer_size = 16  # KB
+        self.buffer_size = 16
 
         # MODE
         self.mode_select = mode_select
@@ -29,8 +29,8 @@ class Client:
         self.buffer_update = False
 
         self.data_queue = queue.Queue()
-        data_receiver = threading.Thread(target=self.data_receiver)
-        data_receiver.start()
+        self.data_receiver = threading.Thread(target=self.data_receiver)
+        self.data_receiver.start()
         self.client_loop()
 
     def client_loop(self):
@@ -47,7 +47,6 @@ class Client:
             if self.next_turn and not self.buffer_update:
                 self.client_send_iteration()
 
-
     def data_receiver(self):
         while True:
             message, self.serverAddress = self.clientSocket.recvfrom(2048)
@@ -56,13 +55,28 @@ class Client:
             self.next_turn = True
 
     def client_send_iteration(self):
+        #check point is 10
+        if (self.client_plus_points-self.client_minus_points) == 10:
+            message = "WON"
+            self.clientSocket.sendto(message.encode('UTF-8'),
+                                     (self.serverName,
+                                      self.serverPort) if not self.serverAddress else self.serverAddress)
+            self.clientSocket.close()
+            quit()
+
         # USER INTERACTION STATE
         self.losing_point = False
         self.next_turn = False
 
         # manual mode
         if self.mode_select == '1':
-            message = input("Enter receive window number and packet length as \"{RWND} {PCK_LEN}\": ")
+            while True:
+                message = input("Enter receive window number and packet length as \"{RWND} {PCK_LEN}\": ")
+                if message == "":
+                    print("invalid input try again")
+                else:
+                    break
+
             message_array = message.split(' ')
 
             if (len(message_array) != 2) or int(message_array[1]) <= 0:
@@ -86,16 +100,16 @@ class Client:
 
         # auto mode
         elif self.mode_select == '2':
-            random_packet_len = random.randint(1, int(self.init_buffer_size))
+            random_packet_len = random.randint(1, int(self.init_buffer_size/2))
             message = f"{self.buffer_size} {random_packet_len}"
             # randomizes the waiting time of the client
             random_number = random.randint(0, 100)
             if 0 < random_number < 33:
-                time.sleep(2)
+                time.sleep(1)
             elif 33 < random_number < 66:
-                time.sleep(3)
+                time.sleep(1)
             else:
-                time.sleep(4)
+                time.sleep(1)
 
             print(f"\t\tCLIENT MESSAGE: {message}")
 
@@ -106,11 +120,17 @@ class Client:
         print("Waiting for the response from server...")
 
     def client_receive_iteration(self,data):
+        if data == "WON":
+            print("* "*13)
+            print("*\t\tSERVER WON\t\t*")
+            print("* " * 13)
+            self.clientSocket.close()
+            quit()
+
         modifiedMessage_array = data.split(' ')
         server_rwnd = modifiedMessage_array[0]
         server_pck_len = modifiedMessage_array[1]
         server_ack = modifiedMessage_array[2]
-
         #BUFFER UPDATES
         if int(server_pck_len) == 0 and server_ack == "ACK":
             self.update_buffer(server_rwnd)

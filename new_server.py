@@ -1,10 +1,9 @@
 import queue
+import random
 import threading
 import time
 from socket import *
 
-# ATTRIBUTES
-# MODE
 mode_select = '2'
 
 class Server:
@@ -13,7 +12,7 @@ class Server:
         self.mode_select = mode_select
 
         # BUFFER
-        self.server_buffer = 8  # KB
+        self.server_buffer = 16  # KB
         self.buffer_time_limit = 30
         self.local_store = []
 
@@ -28,8 +27,8 @@ class Server:
         self.serverSocket.bind(('', self.serverPort))
 
         self.data_queue = queue.Queue()
-        data_receiver = threading.Thread(target=self.data_receiver)
-        data_receiver.start()
+        self.data_receiver = threading.Thread(target=self.data_receiver)
+        self.data_receiver.start()
         self.server_loop()
 
     def server_loop(self):
@@ -42,7 +41,6 @@ class Server:
             except queue.Empty:
                 pass
 
-
     def data_receiver(self):
          while True:
              message, self.clientAddress = self.serverSocket.recvfrom(2048)
@@ -50,6 +48,22 @@ class Server:
              self.data_queue.put(updated_message)
 
     def server_iteration(self, data):
+        #if data is "WON"
+        if data == "WON":
+            print("* "*13)
+            print("*\t\tSERVER WON\t\t*")
+            print("* " * 13)
+            self.serverSocket.close()
+            quit()
+
+        #check point is 10
+        if(self.server_plus_points-self.server_minus_points) == 10:
+            message = "WON"
+            self.serverSocket.sendto(message.encode('UTF-8'), self.clientAddress)
+            self.serverSocket.close()
+            quit()
+
+
         message_array = data.split(' ')
         client_rwnd = message_array[0]
         message_length = message_array[1]
@@ -64,7 +78,6 @@ class Server:
                     print("invalid input try again")
                 else:
                     break
-
 
             message_array = message.split(' ')
 
@@ -114,14 +127,8 @@ class Server:
             #ACK MESSAGE
             acknowledged_message = f'{buffer} {length} {ack_message}'
 
-            print(f"SCORE ->\tTotal:{self.server_plus_points - self.server_minus_points}\t"
-                  f"Plus:{self.server_plus_points}\tMinus:{self.server_minus_points}")
-            print("-" * 36)
-            print("")
-
         # auto mode
         elif self.mode_select == '2':
-
             # Check if its okay to receive
             if int(message_length) <= self.server_buffer :
                 self.decrease_available_buffer(int(message_length))
@@ -131,10 +138,25 @@ class Server:
                 ack_message = "NAK"
                 message_length = 0
 
+            random_number = random.randint(0, 100)
+            if random_number < 40:
+                self.server_minus_points += 1
+                old_ack_status = ack_message
+                ack_message == "NAK" if ack_message == "ACK" else "ACK"
+                print(f"Ack status is wrong. You will LOSE point.\n"
+                     f"Correct Ack status: {old_ack_status}")
+                ack_message = old_ack_status
+            else:
+                self.server_plus_points += 1
+
+
+
             acknowledged_message = f'{self.server_buffer} {message_length} {ack_message}'
             print(f"\t\tSERVER MESSAGE: {acknowledged_message}")
-            print("")
+            print(f"SCORE ->\tTotal:{self.server_plus_points - self.server_minus_points}\t"
+                  f"Plus:{self.server_plus_points}\tMinus:{self.server_minus_points}")
             print("-" * 36)
+            print("")
 
         self.serverSocket.sendto(acknowledged_message.encode('UTF-8'), self.clientAddress)
         print("Waiting for the message from client...")
@@ -149,7 +171,6 @@ class Server:
                 self.update_available_buffer(length)
                 self.local_store.remove(message)
 
-
     def update_available_buffer(self,size):
         self.server_buffer += size
         print("")
@@ -160,7 +181,6 @@ class Server:
         print("")
         acknowledgedMessageOne = f'{self.server_buffer} 0 ACK'
         self.serverSocket.sendto(acknowledgedMessageOne.encode('UTF-8'), self.clientAddress)
-
 
     def decrease_available_buffer(self,size):
         self.server_buffer -= size
