@@ -13,7 +13,6 @@ class Client:
         self.serverName = gethostname()
         self.serverAddress = None
         self.clientSocket = socket(AF_INET, SOCK_DGRAM)
-        self.clientSocket.bind(('', self.serverPort))
 
         # POINT SYSTEM
         self.client_minus_points = 0
