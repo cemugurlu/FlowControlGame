@@ -9,8 +9,6 @@ mode_select = '2'
 
 # BUFFER
 server_buffer = 8  # KB
-buffer_available = True
-used_buffer = 0
 buffer_time_limit = 10
 local_store = []
 
@@ -42,42 +40,93 @@ class Server:
             except queue.Empty:
                 pass
 
-    def data_receiver(self):
-         global clientAddress
-         message, clientAddress = serverSocket.recvfrom(2048)
 
-         #edit the data in any way necessary here
-         updated_message = (message.decode("utf-8"))
-         self.data_queue.put(updated_message)
+    def data_receiver(self):
+         global clientAddress,serverSocket
+         while True:
+             message, clientAddress = serverSocket.recvfrom(2048)
+             updated_message = (message.decode("utf-8"))
+             self.data_queue.put(updated_message)
 
     def server_iteration(self, data):
-        #Assume this method handles updating, drawing, etc
         message_array = data.split(' ')
         client_rwnd = message_array[0]
         message_length = message_array[1]
-
-        self.decrease_available_buffer(int(message_length))
-        local_store.append([int(message_length), time.time()])
+        print(f"Message from the client: RWND:{client_rwnd} PCK_LEN:{message_length}")
 
         # manual mode
         if mode_select == '1':
-            print("manual mod")
-            acknowledgedMessage = f'{server_buffer} {message_length}'
-            # acknowledgedMessage = f'ACK {server_buffer}'
-            # TODO: Get  ACK message from user input
-            # TODO: send ACK message
-            # TODO: Input: Remaining buffer length, ACK or NAK *
+            losing_point = False
+            message = input("Enter receive window number, packet length and ack status as \"{RWND} {PCK_LEN} {ACK or NAK}\": ")
+            message_array = message.split(' ')
+
+            if(len(message_array) != 3):
+                losing_point = True
+
+            buffer = message_array[0]
+            length = message_array[1]
+            ack_message = message_array[2]
+
+            #GOLD DATA CALCULATION
+
+            if int(message_length) <= server_buffer: #possible to send?
+                remaining_buffer = server_buffer - int(message_length)
+                gold_ack_message = "ACK"
+            else:
+                remaining_buffer = server_buffer
+                gold_length = 0
+                gold_ack_message = "NAK"
+
+            #INPUT CONTROL
+            if int(buffer) != remaining_buffer:
+                losing_point = True
+            elif ack_message != gold_ack_message:
+                losing_point = True
+
+            #POINT SYSTEM
+            print("-" * 36)
+            if losing_point: #USER WRONG
+                global server_minus_points
+                server_minus_points += 1
+
+                #Correct the input
+                buffer = remaining_buffer
+                length = gold_length
+                ack_message = gold_ack_message
+
+                print("\t\t** W R O N G :( **")
+                print(f"Correct answer was: \"{server_buffer} {length} {ack_message}\"")
+            else: #USER CORRECT
+                global server_plus_points
+                server_plus_points += 1
+                print("\t\t** C O R R E C T **")
+
+            #UPDATE BUFFER
+            if gold_ack_message == "ACK":
+                self.decrease_available_buffer(int(length))
+                local_store.append([int(message_length), time.time()])
+
+            #ACK MESSAGE
+            acknowledged_message = f'{buffer} {length} {ack_message}'
+
+            print(f"SCORE ->\tTotal:{server_plus_points - server_minus_points}\tPlus:{server_plus_points}\tMinus:{server_minus_points}")
+            print("-" * 36)
 
         # auto mode
         elif mode_select == '2':
-            print("auto mod")
-            acknowledgedMessage = f'{server_buffer} {message_length}'
-            # TODO: Send ACK, Cond, if manual wait for user input from terminal
-            # TODO: Input: Remaining buffer length, ACK or NAK *
+            # Check if its okay to receive
+            if int(message_length) <= server_buffer :
+                self.decrease_available_buffer(int(message_length))
+                local_store.append([int(message_length), time.time()])
+                ack_message = "ACK"
+            else:
+                ack_message = "NAK"
+                message_length = 0
 
-        print("A")
-        serverSocket.sendto(acknowledgedMessage.encode('UTF-8'), clientAddress)
-        print("B")
+            acknowledged_message = f'{server_buffer} {message_length} {ack_message}'
+
+        serverSocket.sendto(acknowledged_message.encode('UTF-8'), clientAddress)
+        print("Waiting for the message from client...")
 
     def check_timer(self):
         for message in local_store:
@@ -94,14 +143,15 @@ class Server:
         global server_buffer, clientAddress
         print("BUFFER UPDATED")
         server_buffer += size
-        acknowledgedMessageOne = f'ACK {server_buffer}'
-        serverSocket.sendto(acknowledgedMessageOne.encode('UTF-8'), (clientAddress, serverPort))
+
+        print(f"kalan buffer {server_buffer}")
+        acknowledgedMessageOne = f'{server_buffer} 0 ACK'
+        serverSocket.sendto(acknowledgedMessageOne.encode('UTF-8'), clientAddress)
 
 
     def decrease_available_buffer(self,size):
         global server_buffer
         server_buffer -= size
-
 
 if __name__ == '__main__':
     # MODE SELECTION
@@ -117,4 +167,5 @@ if __name__ == '__main__':
             break
         else:
             print('Invalid entry. Please try again.')
+    print("Waiting for the message from client...")
     Server()
