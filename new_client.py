@@ -3,6 +3,7 @@ import threading
 from socket import *
 import time
 import random
+import keyboard
 
 mode_select = None
 
@@ -23,6 +24,9 @@ class Client:
         # BUFFER
         self.init_buffer_size = 16  # KB
         self.buffer_size = 16
+        print(f"Client Buffer:{self.buffer_size}\n\n")
+        if mode_select == "1":
+            print("Whenever you want to send a packet press 'a' key")
 
         # MODE
         self.mode_select = mode_select
@@ -44,8 +48,13 @@ class Client:
                 pass
 
             if self.next_turn and self.queue_empty:
-                self.client_send_iteration()
-                time.sleep(1)
+                try:  # used try so that if user pressed other than the given key error will not be shown
+                    if keyboard.is_pressed('a') or self.mode_select == '2':
+                        self.client_send_iteration()
+                        time.sleep(1)
+                except:
+                    pass
+
 
     def data_receiver(self):
         while True:
@@ -92,6 +101,8 @@ class Client:
                     f"SCORE ->\tTotal:{self.client_plus_points - self.client_minus_points}\t"
                     f"Plus:{self.client_plus_points}\tMinus:{self.client_minus_points}")
                 print("-" * 36)
+                if mode_select=="1":
+                    print("Whenever you want to send a packet press 'a' key")
                 self.next_turn = True
                 return
 
@@ -147,6 +158,8 @@ class Client:
             print(f"\t\tServer message: {data}")
             print("*"*40)
             print("")
+            if mode_select == "1":
+                print("Whenever you want to send a packet press 'a' key")
             return
 
 
@@ -167,6 +180,8 @@ class Client:
             f"Plus:{self.client_plus_points}\tMinus:{self.client_minus_points}")
         print("-" * 36)
         print("")
+        if mode_select == "1":
+            print("Whenever you want to send a packet press 'a' key")
         self.next_turn = True
         if (self.client_plus_points - self.client_minus_points) == 10:
             message = "WON"
