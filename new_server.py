@@ -26,6 +26,10 @@ class Server:
         self.serverSocket = socket(AF_INET, SOCK_DGRAM)
         self.serverSocket.bind(('', self.serverPort))
 
+        print(f"Server Buffer:{self.server_buffer}")
+        print(f"Buffer Time Limit:{self.buffer_time_limit}\n\n")
+        print("Waiting for the message from client...")
+
         self.data_queue = queue.Queue()
         self.data_receiver = threading.Thread(target=self.data_receiver)
         self.data_receiver.start()
@@ -218,5 +222,4 @@ if __name__ == '__main__':
             break
         else:
             print('Invalid entry. Please try again.')
-    print("Waiting for the message from client...")
     Server()

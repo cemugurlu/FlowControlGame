@@ -13,7 +13,7 @@ class Client:
         self.serverName = gethostname()
         self.serverAddress = None
         self.clientSocket = socket(AF_INET, SOCK_DGRAM)
-        self.clientSocket.connect((self.serverName, self.serverPort))
+        #self.clientSocket.connect((self.serverName, self.serverPort))
 
         # POINT SYSTEM
         self.client_minus_points = 0
@@ -27,7 +27,7 @@ class Client:
         # MODE
         self.mode_select = mode_select
         self.next_turn = True
-        self.buffer_update = False
+        self.queue_empty = True
 
         self.data_queue = queue.Queue()
         self.data_receiver = threading.Thread(target=self.data_receiver)
@@ -40,13 +40,12 @@ class Client:
                 data = self.data_queue.get_nowait()
                 self.client_receive_iteration(data)
             except queue.Empty:
+                self.queue_empty = True
                 pass
 
-            if self.next_turn and self.buffer_update:
-                self.buffer_update = False
-
-            if self.next_turn and not self.buffer_update:
+            if self.next_turn and self.queue_empty:
                 self.client_send_iteration()
+                time.sleep(1)
 
     def data_receiver(self):
         while True:
@@ -54,7 +53,8 @@ class Client:
                 message, self.serverAddress = self.clientSocket.recvfrom(2048)
                 updated_message = (message.decode("utf-8"))
                 self.data_queue.put(updated_message)
-                self.next_turn = True
+                self.queue_empty = False
+                #self.next_turn = True
             except OSError:
                 pass
 
@@ -84,7 +84,7 @@ class Client:
             message_array = message.split(' ')
 
             if (len(message_array) != 2) or int(message_array[1]) <= 0:
-                print("invalid input")
+                print("invalid input. Packet length should be bigger than 0")
                 print("-" * 36)
                 self.client_minus_points = self.client_minus_points + 1
                 print("\t\t** W R O N G :( **")
@@ -92,7 +92,7 @@ class Client:
                     f"SCORE ->\tTotal:{self.client_plus_points - self.client_minus_points}\t"
                     f"Plus:{self.client_plus_points}\tMinus:{self.client_minus_points}")
                 print("-" * 36)
-                
+                self.next_turn = True
                 return
 
             # GOLD DATA CALCULATION
@@ -147,9 +147,8 @@ class Client:
             print(f"\t\tServer message: {data}")
             print("*"*40)
             print("")
-            self.buffer_update = True
-            self.next_turn = True
             return
+
 
         self.update_buffer(server_rwnd)  # update buffer according to servers buffer
         print(f"Response from server: RNWD:{server_rwnd} PCK_LEN:{server_pck_len} ACK:{server_ack}")
@@ -168,6 +167,7 @@ class Client:
             f"Plus:{self.client_plus_points}\tMinus:{self.client_minus_points}")
         print("-" * 36)
         print("")
+        self.next_turn = True
         if (self.client_plus_points - self.client_minus_points) == 10:
             message = "WON"
             print("* " * 13)
